@@ -1,3 +1,4 @@
+from typing import List
 import os
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
@@ -59,14 +60,28 @@ async def query_audio(audio_description: str, db: Session = Depends(get_db)):
         file_path = db_audio.file_path
         if not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail="Audio file not found on disk")
-        return Response(content=iterfile(), media_type="audio/wav")
+        return Response(
+            content=open(db_audio.file_path, "rb").read(), media_type="audio/wav"
+        )
+
+
+@router.get("/library", response_model=List[Audio])
+async def get_all(db: Session = Depends(get_db)):
+    #return db.query(AudioDB).all()
+    return db_audio = (
+           db.query(AudioDB).filter(AudioDB.description == "Okay, here's the modified code that returns the audio file via the API, handling both existing and newly generated audio. f").first()
+       )
 
 
 @router.delete("/{description}", response_model=Audio)
 async def delete_audio(audio_description: str, db: Session = Depends(get_db)):
-    db_audio = (
-        db.query(AudioDB).filter(AudioDB.description == audio_description).first()
-    )
+    id = create_id(audio_description)
+    file_path = create_file_path(audio_description)
+    db_audio = db.query(AudioDB).filter(AudioDB.id == id).first()
+    try:
+        os.remove(file_path)
+    except Exception as e:
+        print(f"{e}")
     if db_audio is None:
         return None
     else:
