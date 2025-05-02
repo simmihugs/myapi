@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+import os
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from ..database import get_db, AudioDB
 from ..models.audio import Audio, CreateAudio, create_id, create_file_path
@@ -12,12 +13,17 @@ router = APIRouter(
 
 
 @router.post("/", response_model=Audio)
-async def create_user(audio: CreateAudio, db: Session = Depends(get_db)):
+async def create_audio(audio: CreateAudio, db: Session = Depends(get_db)):
     db_audio = (
         db.query(AudioDB).filter(AudioDB.description == audio.description).first()
     )
+
     if db_audio:
-        return db_audio
+        file_path = db_audio.file_path
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="Audio file not found on disk")
+        return Response(content=open(file_path, "rb").read(), media_type="audio/wav")
+
     else:
         id = create_id(audio.description)
         file_path = create_file_path(audio.description)
@@ -31,10 +37,15 @@ async def create_user(audio: CreateAudio, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_audio)
 
-        response = text_to_speech(text=audio.description, output_path=file_path)
-        print(response)
+        audio_file_path = text_to_speech(text=audio.description, output_path=file_path)
+        if audio_file_path is None:
+            db.delete(db_audio)
+            db.commit()
+            raise HTTPException(status_code=500, detail="Failed to generate audio")
 
-        return db_audio
+        return Response(
+            content=open(audio_file_path, "rb").read(), media_type="audio/wav"
+        )
 
 
 @router.get("/{description}", response_model=Audio)
@@ -43,9 +54,12 @@ async def query_audio(audio_description: str, db: Session = Depends(get_db)):
         db.query(AudioDB).filter(AudioDB.description == audio_description).first()
     )
     if db_audio is None:
-        create_user(CreateAudio(description=audio_description), db)
+        create_audio(CreateAudio(description=audio_description), db)
     else:
-        return db_audio
+        file_path = db_audio.file_path
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="Audio file not found on disk")
+        return Response(content=iterfile(), media_type="audio/wav")
 
 
 @router.delete("/{description}", response_model=Audio)

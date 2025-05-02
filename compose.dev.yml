@@ -2,7 +2,7 @@ services:
   tts-api:
     build: .
     volumes:
-      - ./api:/app/api
+      - ./app:/app/api
       - ./lib:/app/lib
       - ./audio:/app/audio
       - ./tts-model-cache:/root/.local/share/tts

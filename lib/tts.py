@@ -11,6 +11,7 @@ def text_to_speech(text: str, output_path: str) -> str:
             file_path=output_path,
             enable_ssml=True,
         )
-        return f"Audio generated at '{output_path}'"
+        return output_path
     except Exception as e:
-        return f"Failed: {e}"
+        print(f"Failed: {e}")
+        return None
