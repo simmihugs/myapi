@@ -1,3 +1,5 @@
 /audio
 /audio.db
 /venv
+/tts-model-cache
+**/__pycache__/

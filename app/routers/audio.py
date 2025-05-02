@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..database import get_db, AudioDB
 from ..models.audio import Audio, CreateAudio, create_id, create_file_path
+from lib.tts import text_to_speech
 
 router = APIRouter(
     prefix="/audio",
@@ -30,8 +31,8 @@ async def create_user(audio: CreateAudio, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_audio)
 
-        with open(file_path, "w") as f:
-            f.write(f"")
+        response = text_to_speech(text=audio.description, output_path=file_path)
+        print(response)
 
         return db_audio
 
