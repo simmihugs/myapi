@@ -1,11 +1,10 @@
-from typing import List
+from typing import List, Optional
 import os
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from ..database import get_db, AudioDB, try_to_delete_audio_file
 from ..models.audio import Audio, CreateAudio, create_id, create_file_path
 from lib.tts import text_to_speech
-
 
 router = APIRouter(
     prefix="/audio",
@@ -14,18 +13,18 @@ router = APIRouter(
 )
 
 
+def check_if_audio_exists(description: str, db: Session) -> Optional[AudioDB]:
+    db_audio = db.query(AudioDB).filter(AudioDB.description == description).first()
+    entry = db_audio if db_audio and os.path.exists(db_audio.file_path) else None
+    return entry
+
+
 @router.post("/", response_model=Audio)
 async def query_audio(audio: CreateAudio, db: Session = Depends(get_db)):
-    db_audio = (
-        db.query(AudioDB).filter(AudioDB.description == audio.description).first()
-    )
-
-    if db_audio:
-        file_path = db_audio.file_path
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="Audio file not found on disk")
-        return Response(content=open(file_path, "rb").read(), media_type="audio/wav")
-
+    if option := check_if_audio_exists(audio.description, db):
+        return Response(
+            content=open(option.file_path, "rb").read(), media_type="audio/wav"
+        )
     else:
         id = create_id(audio.description)
         file_path = create_file_path(audio.description)
@@ -52,11 +51,7 @@ async def query_audio(audio: CreateAudio, db: Session = Depends(get_db)):
 
 @router.post("/create", response_model=Audio)
 async def create_audio(audio: CreateAudio, db: Session = Depends(get_db)):
-    db_audio = (
-        db.query(AudioDB).filter(AudioDB.description == audio.description).first()
-    )
-
-    if db_audio:
+    if db_audio := check_if_audio_exists(audio.description, db):
         return db_audio
 
     else:
