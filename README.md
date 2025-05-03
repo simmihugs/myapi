@@ -38,3 +38,9 @@ Use the id from the item to delete to delete it
 ```shell
 curl -X DELETE http://127.0.0.1:8000/audio/8d13479f3677667f3409b72fb07dca5f
 ```
+
+### Query specific audio
+Use the id from the item to delete to delete it
+```shell
+curl -X GET http://127.0.0.1:8000/audio/8d13479f3677667f3409b72fb07dca5f --output major.wav
+```

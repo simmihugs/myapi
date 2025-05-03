@@ -55,6 +55,19 @@ async def all(db: Session = Depends(get_db)):
     return db.query(AudioDB).all()
 
 
+@router.get("/{id}", response_model=Audio)
+async def get_audio(id: str, db: Session = Depends(get_db)):
+    db_audio = db.query(AudioDB).filter(AudioDB.id == id).first()
+    if db_audio:
+        file_path = db_audio.file_path
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="Audio file not found on disk")
+        return Response(content=open(file_path, "rb").read(), media_type="audio/wav")
+    else:
+        raise HTTPException(status_code=404, detail="No entry found in database")
+        return None
+
+
 @router.delete("/{id}", response_model=Audio)
 async def delete_audio(id: str, db: Session = Depends(get_db)):
     db_audio = db.query(AudioDB).filter(AudioDB.id == id).first()
