@@ -15,7 +15,7 @@ router = APIRouter(
 
 
 @router.post("/", response_model=Audio)
-async def create_audio(audio: CreateAudio, db: Session = Depends(get_db)):
+async def query_audio(audio: CreateAudio, db: Session = Depends(get_db)):
     db_audio = (
         db.query(AudioDB).filter(AudioDB.description == audio.description).first()
     )
@@ -48,6 +48,37 @@ async def create_audio(audio: CreateAudio, db: Session = Depends(get_db)):
         return Response(
             content=open(audio_file_path, "rb").read(), media_type="audio/wav"
         )
+
+
+@router.post("/create", response_model=Audio)
+async def create_audio(audio: CreateAudio, db: Session = Depends(get_db)):
+    db_audio = (
+        db.query(AudioDB).filter(AudioDB.description == audio.description).first()
+    )
+
+    if db_audio:
+        return db_audio
+
+    else:
+        id = create_id(audio.description)
+        file_path = create_file_path(audio.description)
+
+        db_audio = AudioDB(
+            id=id,
+            description=audio.description,
+            file_path=file_path,
+        )
+        db.add(db_audio)
+        db.commit()
+        db.refresh(db_audio)
+
+        audio_file_path = text_to_speech(text=audio.description, output_path=file_path)
+        if audio_file_path is None:
+            db.delete(db_audio)
+            db.commit()
+            raise HTTPException(status_code=500, detail="Failed to generate audio")
+
+        return db_audio
 
 
 @router.get("/all", response_model=List[Audio])
