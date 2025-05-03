@@ -2,7 +2,7 @@ from typing import List
 import os
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
-from ..database import get_db, AudioDB
+from ..database import get_db, AudioDB, try_to_delete_audio_file
 from ..models.audio import Audio, CreateAudio, create_id, create_file_path
 from lib.tts import text_to_speech
 
@@ -71,13 +71,27 @@ async def get_audio(id: str, db: Session = Depends(get_db)):
 @router.delete("/{id}", response_model=Audio)
 async def delete_audio(id: str, db: Session = Depends(get_db)):
     db_audio = db.query(AudioDB).filter(AudioDB.id == id).first()
-    try:
-        os.remove(db_audio.file_path)
-    except Exception as e:
-        print(f"{e}")
+    try_to_delete_audio_file(db_audio)
     if db_audio is None:
         return None
     else:
         db.delete(db_audio)
         db.commit()
         return db_audio
+
+
+@router.delete("/")
+async def delete_all_audio(db: Session = Depends(get_db)):
+    try:
+        for entry in db.query(AudioDB).all():
+            try_to_delete_audio_file(entry)
+        db.query(AudioDB).delete()
+        db.commit()
+
+        return {"message": "All audio entries have been deleted."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete all audio entries: {e}",
+        )

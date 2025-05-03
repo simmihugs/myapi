@@ -3,8 +3,6 @@ from sqlalchemy import create_engine, Column, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# DATABASE_URL = "sqlite:///./audio.db"
-
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./audio.db")
 
 print(f"DATABASE_URL being used: {DATABASE_URL}")
@@ -33,3 +31,10 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def try_to_delete_audio_file(db_audio: AudioDB):
+    try:
+        os.remove(db_audio.file_path)
+    except Exception as e:
+        print(f"{e}")
