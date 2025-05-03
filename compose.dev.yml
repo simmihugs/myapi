@@ -6,9 +6,10 @@ services:
       - ./lib:/app/lib
       - ./audio:/app/audio
       - ./tts-model-cache:/root/.local/share/tts
+      - ./data:/app/data
     environment:
       - WATCHFILES_FORCE_POLLING=true
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=sqlite:///audio.db
+      - DATABASE_URL=sqlite:////app/data/audio.db
     ports:
       - "8000:8000"

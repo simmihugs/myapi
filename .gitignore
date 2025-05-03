@@ -3,3 +3,4 @@
 /venv
 /tts-model-cache
 **/__pycache__/
+/data
