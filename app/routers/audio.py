@@ -1,22 +1,20 @@
-from typing import List, Optional
+from lib.worker import processing_status
+from typing import List
 import os
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from ..database import get_db, AudioDB, try_to_delete_audio_file
 from ..models.audio import Audio, CreateAudio, create_id, create_file_path
+from lib.worker import audio_queue
 from lib.tts import text_to_speech
+import asyncio
+from ..utils import check_if_audio_exists
 
 router = APIRouter(
     prefix="/audio",
     tags=["audio"],
     responses={404: {"description": "Audio not found"}},
 )
-
-
-def check_if_audio_exists(description: str, db: Session) -> Optional[AudioDB]:
-    db_audio = db.query(AudioDB).filter(AudioDB.description == description).first()
-    entry = db_audio if db_audio and os.path.exists(db_audio.file_path) else None
-    return entry
 
 
 @router.post("/", response_model=Audio)
@@ -76,6 +74,19 @@ async def create_audio(audio: CreateAudio, db: Session = Depends(get_db)):
         return db_audio
 
 
+@router.post("/add_to_queue", response_model=dict)
+async def add_to_queue(audio: CreateAudio, db: Session = Depends(get_db)):
+    if db_audio := check_if_audio_exists(audio.description, db):
+        return db_audio
+    else:
+        request_id = create_id(audio.description + str(asyncio.get_running_loop().time())) 
+        await audio_queue.put((audio.description, request_id))
+        return {
+            "message":
+            f"Audio request added to queue with ID: {request_id}", "request_id": request_id
+        }
+
+
 @router.get("/all", response_model=List[Audio])
 async def all(db: Session = Depends(get_db)):
     return db.query(AudioDB).all()
@@ -91,7 +102,7 @@ async def get_audio(id: str, db: Session = Depends(get_db)):
         return Response(content=open(file_path, "rb").read(), media_type="audio/wav")
     else:
         raise HTTPException(status_code=404, detail="No entry found in database")
-        return None
+
 
 
 @router.delete("/{id}", response_model=Audio)
@@ -121,3 +132,4 @@ async def delete_all_audio(db: Session = Depends(get_db)):
             status_code=500,
             detail=f"Failed to delete all audio entries: {e}",
         )
+
